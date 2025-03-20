@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>FlappyBird Multijoueur</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Login screen -->
+        <div id="login-screen">
+            <h1>FlappyBird Multijoueur</h1>
+            <div class="form-group">
+                <input type="text" id="username-input" placeholder="Entrez votre pseudo" maxlength="15">
+                <button id="start-button">Jouer</button>
+            </div>
+        </div>
+        
+        <!-- Game screen -->
+        <div id="game-screen" style="display: none;">
+            <div id="top-scores">
+                <h3>Top 5</h3>
+                <div id="scores-list"></div>
+                <div id="timer">05:00</div>
+            </div>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            <div id="player-info">
+                <span id="player-name"></span>
+                <span id="player-score">Score: 0</span>
+            </div>
+        </div>
+        
+        <!-- Full leaderboard screen -->
+        <div id="leaderboard-screen" style="display: none;">
+            <h2>Classement Final</h2>
+            <div id="full-leaderboard"></div>
+            <div id="countdown">Nouvelle partie dans <span id="countdown-timer">20</span>s</div>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="assets.js"></script>
+    <script type="module" src="ui.js"></script>
+    <script type="module" src="physics.js"></script>
+    <script type="module" src="game.js"></script>
+</body>
+</html>
