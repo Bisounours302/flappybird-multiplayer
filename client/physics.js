@@ -1,62 +1,51 @@
 // Game physics and collision detection
 
 // Generate the initial pipes based on the seed random
-function generateInitialPipes(canvas, seedRandom, worldOffset = 0) {
+function generateInitialPipes(canvas, seedRandom) {
     const pipes = [];
-    const pipeSpacing = 300; // Distance between pipes
+    const lastPipeX = canvas.width;
     
-    // Calculate how many pipes we need to fill the screen plus some buffer
-    const numPipes = Math.ceil((canvas.width + 800) / pipeSpacing);
-    
-    // Calculate the starting x position for the first pipe based on world offset
-    const firstPipeX = Math.floor(worldOffset / pipeSpacing) * pipeSpacing;
-    
-    for (let i = 0; i < numPipes; i++) {
-        const x = firstPipeX + (i * pipeSpacing) - (worldOffset % pipeSpacing);
-        
-        // Use a consistent seed for each pipe position to ensure all players see same pipes
-        const pipeSeed = firstPipeX + (i * pipeSpacing);
-        const seedFunc = seededRandom(gameState.roundSeed + pipeSeed);
-        
-        const gapY = 100 + seedFunc() * (canvas.height - 300);
+    // The first pipes are the same for everyone (based on the seed)
+    for (let i = 0; i < 3; i++) {
+        const x = canvas.width + i * 300;
+        const gapY = 100 + seedRandom() * (canvas.height - 300);
         pipes.push({ x: x, gapY: gapY, passed: false });
     }
     
-    return { pipes, lastPipeX: pipes[pipes.length - 1].x };
+    return { pipes, lastPipeX };
 }
 
-// Update pipes positions based on world offset
-function updatePipes(pipes, canvas, pipeWidth, worldOffset, lastWorldOffset, seedRandom) {
-    const pipeSpacing = 300;
-    const pipeMovement = worldOffset - lastWorldOffset;
+// Update pipes positions
+function updatePipes(pipes, canvas, pipeWidth, pipeSpeed, seedRandom) {
+    let scoreIncrement = 0;
     
-    // Move all pipes to match world movement
+    // Move all pipes to the left
     pipes.forEach(pipe => {
-        pipe.x -= pipeMovement;
+        pipe.x -= pipeSpeed;
+        
+        // Check if pipe was passed
+        if (!pipe.passed && pipe.x + pipeWidth < 50) {
+            pipe.passed = true;
+            scoreIncrement = 1; // Player passed a pipe
+        }
     });
     
     // Remove pipes that are off screen
-    while (pipes.length > 0 && pipes[0].x < -pipeWidth) {
+    if (pipes.length > 0 && pipes[0].x < -pipeWidth) {
         pipes.shift();
     }
     
-    // Add new pipes as needed
-    const lastPipe = pipes[pipes.length - 1];
-    if (lastPipe && lastPipe.x < canvas.width) {
-        const newPipeX = lastPipe.x + pipeSpacing;
-        const pipeSeed = Math.floor(worldOffset / pipeSpacing) * pipeSpacing + 
-                          pipes.length * pipeSpacing;
-        const seedFunc = seededRandom(gameState.roundSeed + pipeSeed);
-        
-        const gapY = 100 + seedFunc() * (canvas.height - 300);
+    // Add new pipe when needed
+    if (pipes.length > 0 && pipes[pipes.length - 1].x < canvas.width - 300) {
+        const gapY = 100 + seedRandom() * (canvas.height - 300);
         pipes.push({
-            x: newPipeX,
+            x: canvas.width,
             gapY: gapY,
             passed: false
         });
     }
     
-    return { pipes };
+    return { pipes, scoreIncrement };
 }
 
 // Check for collisions with pipes and boundaries
@@ -112,7 +101,7 @@ function drawGame(ctx, players, pipes, canvas, birdImg, pipeTopImg, pipeBottomIm
         
         // Draw the bird with a slight rotation based on vertical velocity
         ctx.save();
-        ctx.translate(player.x, player.y + 10);
+        ctx.translate(player.x + 10, player.y + 10);
         ctx.rotate(player.alive ? Math.PI / 20 : Math.PI / 2); // Rotate more when dead
         ctx.globalAlpha = player.alive ? 1 : 0.6;
         ctx.drawImage(birdImg, -10, -10, 20, 20);
@@ -131,18 +120,9 @@ function drawGame(ctx, players, pipes, canvas, birdImg, pipeTopImg, pipeBottomIm
     }
 }
 
-// Helper function for seeded random
-function seededRandom(seed) {
-    return function() {
-        seed = (seed * 9301 + 49297) % 233280;
-        return seed / 233280;
-    };
-}
-
 export { 
     generateInitialPipes, 
     updatePipes, 
     checkCollisions,
-    drawGame,
-    seededRandom
+    drawGame
 };

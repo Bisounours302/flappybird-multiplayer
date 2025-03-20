@@ -59,22 +59,10 @@ function showScreen(screenToShow, screensToHide) {
     });
 }
 
-// Show restart button when player dies
-function showRestartButton(restartButtonElement) {
-    restartButtonElement.style.display = 'block';
-}
-
-// Hide restart button
-function hideRestartButton(restartButtonElement) {
-    restartButtonElement.style.display = 'none';
-}
-
 export { 
     displayTop5, 
     displayLeaderboard, 
     startLeaderboardCountdown, 
     updatePlayerScore,
-    showScreen,
-    showRestartButton,
-    hideRestartButton
+    showScreen
 };

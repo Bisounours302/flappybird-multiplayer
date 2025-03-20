@@ -15,12 +15,8 @@ let gameState = {
     status: 'waiting', // 'waiting', 'playing', 'leaderboard'
     timeRemaining: 300, // 5 minutes en secondes
     leaderboardTime: 20, // temps d'affichage du leaderboard en secondes
-    roundSeed: Math.floor(Math.random() * 1000), // seed pour générer la même map
-    worldOffset: 0 // Position horizontale du monde de jeu
+    roundSeed: Math.floor(Math.random() * 1000) // seed pour générer la même map
 };
-
-// Vitesse de défilement du monde
-const WORLD_SPEED = 2;
 
 // Gestion des connexions
 io.on('connection', (socket) => {
@@ -33,11 +29,10 @@ io.on('connection', (socket) => {
         // Initialiser le joueur
         players[socket.id] = {
             username: username,
-            x: 100, // Position X initiale - tous les joueurs commencent au même X
-            y: 200, // Position Y initiale
+            x: 50,
+            y: 200,
             alive: true,
-            score: 0,
-            distance: 0 // Distance parcourue par le joueur
+            score: 0
         };
         
         // Envoi de l'état actuel au nouveau joueur
@@ -45,8 +40,7 @@ io.on('connection', (socket) => {
             status: gameState.status,
             timeRemaining: gameState.timeRemaining,
             leaderboardTime: gameState.leaderboardTime,
-            seed: gameState.roundSeed,
-            worldOffset: gameState.worldOffset
+            seed: gameState.roundSeed
         });
         
         // Notifier les autres joueurs
@@ -69,16 +63,6 @@ io.on('connection', (socket) => {
             players[socket.id].alive = false;
         }
     });
-    
-    // Quand un joueur veut rejouer après être mort
-    socket.on('restart', () => {
-        if (players[socket.id] && !players[socket.id].alive && gameState.status === 'playing') {
-            players[socket.id].alive = true;
-            players[socket.id].x = 100; // Retour à la position initiale
-            players[socket.id].y = 200;
-            players[socket.id].distance = 0; // Réinitialiser la distance
-        }
-    });
 
     // Mise à jour du score
     socket.on('update_score', (score) => {
@@ -96,20 +80,10 @@ io.on('connection', (socket) => {
 
 // Mise à jour du jeu (60 FPS)
 setInterval(() => {
-    if (gameState.status === 'playing') {
-        // Avance du monde de jeu
-        gameState.worldOffset += WORLD_SPEED;
-        
-        // Mise à jour des joueurs
-        for (let id in players) {
-            if (players[id].alive) {
-                players[id].y += 2; // Gravité
-                
-                // Mettre à jour la distance parcourue (uniquement pour les joueurs vivants)
-                players[id].distance += WORLD_SPEED;
-                // Utiliser la distance comme score
-                players[id].score = Math.floor(players[id].distance / 10);
-            }
+    // Mise à jour des joueurs
+    for (let id in players) {
+        if (players[id].alive && gameState.status === 'playing') {
+            players[id].y += 2; // Gravité
         }
     }
     
@@ -118,8 +92,7 @@ setInterval(() => {
         players,
         gameState: {
             status: gameState.status,
-            timeRemaining: gameState.timeRemaining,
-            worldOffset: gameState.worldOffset
+            timeRemaining: gameState.timeRemaining
         }
     });
 }, 16);
@@ -134,7 +107,7 @@ setInterval(() => {
             gameState.status = 'leaderboard';
             gameState.timeRemaining = gameState.leaderboardTime;
             
-            // Trier les joueurs par distance (score) pour le leaderboard
+            // Trier les joueurs par score pour le leaderboard
             const leaderboard = Object.values(players)
                 .sort((a, b) => b.score - a.score)
                 .map(p => ({ username: p.username, score: p.score }));
@@ -149,15 +122,13 @@ setInterval(() => {
             gameState.status = 'playing';
             gameState.timeRemaining = 300; // 5 minutes
             gameState.roundSeed = Math.floor(Math.random() * 1000);
-            gameState.worldOffset = 0; // Réinitialiser la position du monde
             
             // Réinitialiser les joueurs
             for (let id in players) {
-                players[id].x = 100;
+                players[id].x = 50;
                 players[id].y = 200;
                 players[id].alive = true;
                 players[id].score = 0;
-                players[id].distance = 0;
             }
             
             io.emit('new_round', {
@@ -172,28 +143,6 @@ setInterval(() => {
     }
 }, 1000);
 
-// Add error handling for the server
-server.on('error', (err) => {
-    console.error('Server error:', err);
-});
-
-// Add error handling for socket.io
-io.on('error', (err) => {
-    console.error('Socket.io error:', err);
-});
-
-// Add uncaught exception handling
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught exception:', err);
-    // Don't exit the process - this keeps your app running
-});
-
-// Add unhandled rejection handling
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    // Don't exit the process
-});
-
-server.listen(3001, () => {
-    console.log('Serveur démarré sur http://localhost:3001');
+server.listen(3000, () => {
+    console.log('Serveur démarré sur http://localhost:3000');
 });
