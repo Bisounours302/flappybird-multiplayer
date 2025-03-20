@@ -1,9 +1,12 @@
-import { birdImg, pipeTopImg, pipeBottomImg, bgImg, groundImg, seededRandom, formatTime } from './assets.js';
-import { displayTop5, displayLeaderboard, startLeaderboardCountdown, updatePlayerScore, showScreen } from './ui.js';
-import { generateInitialPipes, updatePipes, checkCollisions, drawGame } from './physics.js';
+import { birdImg, pipeTopImg, pipeBottomImg, bgImg, groundImg, formatTime } from './assets.js';
+import { displayTop5, displayLeaderboard, startLeaderboardCountdown, updatePlayerScore, showRestartButton, hideRestartButton } from './ui.js';
+import { generateInitialPipes, updatePipes, checkCollisions, drawGame, seededRandom } from './physics.js';
 
 // Connect to the socket.io server
-const socket = io();
+const socket = io({
+  secure: true,
+  rejectUnauthorized: false
+});
 
 // Get DOM elements
 const canvas = document.getElementById('gameCanvas');
@@ -20,6 +23,14 @@ const timerElement = document.getElementById('timer');
 const fullLeaderboardElement = document.getElementById('full-leaderboard');
 const countdownTimerElement = document.getElementById('countdown-timer');
 
+// Create restart button
+const restartButton = document.createElement('button');
+restartButton.id = 'restart-button';
+restartButton.textContent = 'Rejouer';
+restartButton.className = 'restart-button';
+restartButton.style.display = 'none';
+document.getElementById('game-screen').appendChild(restartButton);
+
 // Game state variables
 let username = '';
 let isGameActive = false;
@@ -27,16 +38,21 @@ let score = 0;
 let pipes = [];
 let lastPipeX = 0;
 let seedRandom;
+let lastWorldOffset = 0;
 let countdownInterval;
+let gameState = {
+    roundSeed: 0,
+    worldOffset: 0
+};
 const pipeWidth = 50;
 const pipeGap = 150;
-const pipeSpeed = 2;
 
 // Initialize the game
 function init() {
     // Event listeners
     startButton.addEventListener('click', handleStartGame);
     document.addEventListener('keydown', handleKeyDown);
+    restartButton.addEventListener('click', handleRestart);
     
     // Socket event listeners
     setupSocketListeners();
@@ -70,6 +86,12 @@ function handleKeyDown(e) {
     }
 }
 
+// Handle restart button click
+function handleRestart() {
+    socket.emit('restart');
+    hideRestartButton(restartButton);
+}
+
 // Setup all socket event listeners
 function setupSocketListeners() {
     // Initial game state when joining
@@ -90,9 +112,13 @@ function setupSocketListeners() {
 
 // Handle initial game state
 function handleGameState(state) {
+    gameState.roundSeed = state.seed;
+    gameState.worldOffset = state.worldOffset;
+    lastWorldOffset = state.worldOffset;
+    
     if (state.status === 'playing') {
         seedRandom = seededRandom(state.seed);
-        const initialPipes = generateInitialPipes(canvas, seedRandom);
+        const initialPipes = generateInitialPipes(canvas, seedRandom, state.worldOffset);
         pipes = initialPipes.pipes;
         lastPipeX = initialPipes.lastPipeX;
         
@@ -110,30 +136,40 @@ function handleGameStart() {
 }
 
 // Handle regular game updates
-function handleGameUpdate(gameState) {
+function handleGameUpdate(data) {
     if (!isGameActive) return;
     
+    // Update game state
+    gameState.worldOffset = data.gameState.worldOffset;
+    
     // Update timer
-    timerElement.textContent = formatTime(gameState.gameState.timeRemaining);
+    timerElement.textContent = formatTime(data.gameState.timeRemaining);
     
-    // Update pipes and check for score increment
-    const pipeUpdate = updatePipes(pipes, canvas, pipeWidth, pipeSpeed, seedRandom);
+    // Update pipes based on world movement
+    const pipeUpdate = updatePipes(pipes, canvas, pipeWidth, gameState.worldOffset, lastWorldOffset, seedRandom);
     pipes = pipeUpdate.pipes;
+    lastWorldOffset = gameState.worldOffset;
     
-    // If score increased, update it
-    if (pipeUpdate.scoreIncrement > 0 && gameState.players[socket.id] && gameState.players[socket.id].alive) {
-        score += pipeUpdate.scoreIncrement;
+    // Update score display from server data
+    if (data.players[socket.id]) {
+        score = data.players[socket.id].score;
         updatePlayerScore(playerScoreElement, score);
-        socket.emit('update_score', score);
+        
+        // Show restart button if player died
+        if (!data.players[socket.id].alive) {
+            showRestartButton(restartButton);
+        } else {
+            hideRestartButton(restartButton);
+        }
     }
     
     // Show top 5 scores
-    displayTop5(gameState.players, scoresListElement);
+    displayTop5(data.players, scoresListElement);
     
     // Draw the game
     drawGame(
         ctx, 
-        gameState.players, 
+        data.players, 
         pipes, 
         canvas, 
         birdImg, 
@@ -146,9 +182,9 @@ function handleGameUpdate(gameState) {
     );
     
     // Check for collisions
-    if (gameState.players[socket.id] && gameState.players[socket.id].alive) {
+    if (data.players[socket.id] && data.players[socket.id].alive) {
         const hasCollision = checkCollisions(
-            gameState.players[socket.id], 
+            data.players[socket.id], 
             pipes, 
             canvas, 
             pipeWidth, 
@@ -182,11 +218,17 @@ function handleNewRound(data) {
     score = 0;
     updatePlayerScore(playerScoreElement, score);
     seedRandom = seededRandom(data.seed);
+    gameState.roundSeed = data.seed;
+    gameState.worldOffset = 0;
+    lastWorldOffset = 0;
     
     // Generate new pipes
-    const initialPipes = generateInitialPipes(canvas, seedRandom);
+    const initialPipes = generateInitialPipes(canvas, seedRandom, 0);
     pipes = initialPipes.pipes;
     lastPipeX = initialPipes.lastPipeX;
+    
+    // Hide restart button if visible
+    hideRestartButton(restartButton);
     
     // Show game screen
     leaderboardScreen.style.display = 'none';

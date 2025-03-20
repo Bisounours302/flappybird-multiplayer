@@ -185,3 +185,26 @@ body {
     color: #f7b731;
     font-size: 14px;
 }
+
+/* Restart Button */
+.restart-button {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 12px 20px;
+    background-color: #f7b731;
+    border: 3px solid #333;
+    border-radius: 5px;
+    color: #333;
+    font-family: 'Press Start 2P', cursive;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 100;
+}
+
+.restart-button:hover {
+    background-color: #f0932b;
+    transform: translate(-50%, -50%) scale(1.05);
+}
